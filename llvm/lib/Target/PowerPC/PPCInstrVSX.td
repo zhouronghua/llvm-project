@@ -4068,6 +4068,9 @@ def : Pat<(v4f32 (PPCldsplat ForceXForm:$A)),
           (v4f32 (LXVWSX ForceXForm:$A))>;
 def : Pat<(v4i32 (PPCldsplat ForceXForm:$A)),
           (v4i32 (LXVWSX ForceXForm:$A))>;
+
+def : Pat<(int_ppc_stfiw ForceXForm:$dst, f64:$XT),
+          (STXSIWX f64:$XT, ForceXForm:$dst)>;
 } // HasVSX, HasP9Vector
 
 // Any Power9 VSX subtarget with equivalent length but better Power10 VSX
