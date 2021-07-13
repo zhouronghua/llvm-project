@@ -226,7 +226,7 @@ public:
   /// Get the content for this block. Block must not be a zero-fill block.
   ArrayRef<char> getContent() const {
     assert(Data && "Section does not contain content");
-    return ArrayRef<char>(Data, Size);
+    return ArrayRef<char>(Data, Size);        //     ??????
   }
 
   /// Set the content for this block.

@@ -23,7 +23,7 @@ EHFrameSplitter::EHFrameSplitter(StringRef EHFrameSectionName)
     : EHFrameSectionName(EHFrameSectionName) {}
 
 Error EHFrameSplitter::operator()(LinkGraph &G) {
-  auto *EHFrame = G.findSectionByName(EHFrameSectionName);
+  auto *EHFrame = G.findSectionByName(EHFrameSectionName);    //  .eh_frame section
 
   if (!EHFrame) {
     LLVM_DEBUG({

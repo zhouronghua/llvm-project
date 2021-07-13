@@ -25,7 +25,7 @@ IRLayer::~IRLayer() {}
 Error IRLayer::add(ResourceTrackerSP RT, ThreadSafeModule TSM) {
   assert(RT && "RT can not be null");
   auto &JD = RT->getJITDylib();
-  return JD.define(std::make_unique<BasicIRLayerMaterializationUnit>(
+  return JD.define(std::make_unique<BasicIRLayerMaterializationUnit>(     // 在添加IRLayer的时候， 会顺带添加上BasicIRLayerMaterializationUnit， MU会负责调用对应的Layer初始化符号
                        *this, *getManglingOptions(), std::move(TSM)),
                    std::move(RT));
 }

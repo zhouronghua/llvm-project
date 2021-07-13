@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
 
-  cl::ParseCommandLineOptions(argc, argv, "LLJITWithLazyReexports");
+  cl::ParseCommandLineOptions(argc, argv, "LLJITWithReexports");
   ExitOnErr.setBanner(std::string(argv[0]) + ": ");
 
   // (1) Create LLJIT instance.
@@ -105,24 +105,12 @@ int main(int argc, char *argv[]) {
   // (2) Install transform to print modules as they are compiled:
   J->getIRTransformLayer().setTransform(
       [](ThreadSafeModule TSM,
-         const MaterializationResponsibility &R) -> Expected<ThreadSafeModule> {
-        TSM.withModuleDo([](Module &M) { dbgs() << "---Compiling---\n" << M; });
-        return std::move(TSM); // Not a redundant move: fix build on gcc-7.5
+         MaterializationResponsibility &R) -> Expected<ThreadSafeModule> {
+        TSM.withModuleDo([](Module &M) {
+          dbgs() << "-----Compiling---\n" << M;
+        });
+        return std::move(TSM);
       });
-
-  // (3) Create stubs and call-through managers:
-  std::unique_ptr<IndirectStubsManager> ISM;
-  {
-    auto ISMBuilder =
-        createLocalIndirectStubsManagerBuilder(J->getTargetTriple());
-    if (!ISMBuilder())
-      ExitOnErr(make_error<StringError>("Could not create stubs manager for " +
-                                            J->getTargetTriple().str(),
-                                        inconvertibleErrorCode()));
-    ISM = ISMBuilder();
-  }
-  auto LCTM = ExitOnErr(createLocalLazyCallThroughManager(
-      J->getTargetTriple(), J->getExecutionSession(), 0));
 
   // (4) Add modules.
   ExitOnErr(J->addIRModule(ExitOnErr(parseExampleModule(FooMod, "foo-mod"))));
@@ -131,15 +119,13 @@ int main(int argc, char *argv[]) {
 
   // (5) Add lazy reexports.
   MangleAndInterner Mangle(J->getExecutionSession(), J->getDataLayout());
-  SymbolAliasMap ReExports(   //
-      {{Mangle("foo"),
-        {Mangle("foo_body"),   // foo 等价于foo_body
-         JITSymbolFlags::Exported | JITSymbolFlags::Callable}},
-       {Mangle("bar"),
-        {Mangle("bar_body"),   // bar等价于bar_body
-         JITSymbolFlags::Exported | JITSymbolFlags::Callable}}});
   ExitOnErr(J->getMainJITDylib().define(
-      lazyReexports(*LCTM, *ISM, J->getMainJITDylib(), std::move(ReExports))));
+      symbolAliases({{Mangle("foo"),
+                      {Mangle("foo_body"),
+                       JITSymbolFlags::Exported | JITSymbolFlags::Callable}},
+                     {Mangle("bar"),
+                      {Mangle("bar_body"), JITSymbolFlags::Exported |
+                                               JITSymbolFlags::Callable}}})));
 
   // (6) Dump the ExecutionSession state.
   dbgs() << "---Session state---\n";

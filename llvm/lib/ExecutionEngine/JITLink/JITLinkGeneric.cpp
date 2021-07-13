@@ -37,7 +37,7 @@ void JITLinkerBase::linkPhase1(std::unique_ptr<JITLinkerBase> Self) {
     G->dump(dbgs());
   });
 
-  prune(*G);
+  prune(*G);    // 删除一些dead的符号。
 
   LLVM_DEBUG({
     dbgs() << "Link graph \"" << G->getName() << "\" post-pruning:\n";
@@ -146,7 +146,7 @@ void JITLinkerBase::linkPhase2(std::unique_ptr<JITLinkerBase> Self,
   });
 
   // Fix up block content.
-  if (auto Err = fixUpBlocks(*G))
+  if (auto Err = fixUpBlocks(*G))                   // 将.text和.text.rela合并
     return deallocateAndBailOut(std::move(Err));
 
   LLVM_DEBUG({
@@ -199,7 +199,8 @@ JITLinkerBase::SegmentLayoutMap JITLinkerBase::layOutBlocks() {
     else
       SegLists.ZeroFillBlocks.push_back(B);
   }
-
+  // 按照内存页面的权限信息， 对其进行分类排序。
+  // 尽可能将权限一样的页面放置在一起
   /// Sort blocks within each list.
   for (auto &KV : Layout) {
 

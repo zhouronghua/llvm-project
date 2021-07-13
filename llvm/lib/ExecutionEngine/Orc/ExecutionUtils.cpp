@@ -255,7 +255,7 @@ Error DynamicLibrarySearchGenerator::tryToGenerate(
 
     std::string Tmp((*Name).data() + HasGlobalPrefix,
                     (*Name).size() - HasGlobalPrefix);
-    if (void *Addr = Dylib.getAddressOfSymbol(Tmp.c_str())) {
+    if (void *Addr = Dylib.getAddressOfSymbol(Tmp.c_str())) {    // 在当前dylib中查找对应的函数地址
       NewSymbols[Name] = JITEvaluatedSymbol(
           static_cast<JITTargetAddress>(reinterpret_cast<uintptr_t>(Addr)),
           JITSymbolFlags::Exported);

@@ -1100,26 +1100,26 @@ LLJIT::LLJIT(LLJITBuilderState &S, Error &Err)
     return;
   }
 
-  auto ObjLayer = createObjectLinkingLayer(S, *ES);
+  auto ObjLayer = createObjectLinkingLayer(S, *ES);   // 创建Object linker
   if (!ObjLayer) {
     Err = ObjLayer.takeError();
     return;
   }
   ObjLinkingLayer = std::move(*ObjLayer);
   ObjTransformLayer =
-      std::make_unique<ObjectTransformLayer>(*ES, *ObjLinkingLayer);
+      std::make_unique<ObjectTransformLayer>(*ES, *ObjLinkingLayer);    //  ObjTransformLayer ---> RTDyldObjectLinkingLayer
 
   {
-    auto CompileFunction = createCompileFunction(S, std::move(*S.JTMB));
+    auto CompileFunction = createCompileFunction(S, std::move(*S.JTMB));   // IRCompileLayer::IRCompiler
     if (!CompileFunction) {
       Err = CompileFunction.takeError();
       return;
     }
     CompileLayer = std::make_unique<IRCompileLayer>(
-        *ES, *ObjTransformLayer, std::move(*CompileFunction));
+        *ES, *ObjTransformLayer, std::move(*CompileFunction));                 // IRCompileLayer  --->  ObjTransformLayer
     TransformLayer = std::make_unique<IRTransformLayer>(*ES, *CompileLayer);
     InitHelperTransformLayer =
-        std::make_unique<IRTransformLayer>(*ES, *TransformLayer);
+        std::make_unique<IRTransformLayer>(*ES, *TransformLayer);             // IRTransformLayer ----> IRCompileLayer
   }
 
   if (S.NumCompileThreads > 0) {

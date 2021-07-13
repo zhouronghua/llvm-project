@@ -102,7 +102,7 @@ void LazyCallThroughManager::resolveTrampolineLandingAddress(
             NoDependenciesToRegister);
 }
 
-Expected<std::unique_ptr<LazyCallThroughManager>>
+Expected<std::unique_ptr<LazyCallThroughManager>>  // Symbols --> (Symbol, Flags)
 createLocalLazyCallThroughManager(const Triple &T, ExecutionSession &ES,
                                   JITTargetAddress ErrorHandlerAddr) {
   switch (T.getArch()) {

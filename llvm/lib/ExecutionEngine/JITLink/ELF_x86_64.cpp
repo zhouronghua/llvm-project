@@ -153,7 +153,7 @@ static Error optimizeELF_x86_64_GOTAndStubs(LinkGraph &G) {
     for (auto &E : B->edges())
       if (E.getKind() == PCRel32GOTLoad) {
         // Replace GOT load with LEA only for MOVQ instructions.
-        constexpr uint8_t MOVQRIPRel[] = {0x48, 0x8b};
+        constexpr uint8_t MOVQRIPRel[] = {0x48, 0x8b};          // movq ${reg1}, qword ptr [${reg2}]
         if (E.getOffset() < 3 ||
             strncmp(B->getContent().data() + E.getOffset() - 3,
                     reinterpret_cast<const char *>(MOVQRIPRel), 2) != 0)
@@ -165,11 +165,11 @@ static Error optimizeELF_x86_64_GOTAndStubs(LinkGraph &G) {
         assert(GOTBlock.edges_size() == 1 &&
                "GOT entry should only have one outgoing edge");
 
-        auto &GOTTarget = GOTBlock.edges().begin()->getTarget();
+        auto &GOTTarget = GOTBlock.edges().begin()->getTarget();        // GOTTarget: 当前所依赖的符号
         JITTargetAddress EdgeAddr = B->getAddress() + E.getOffset();
-        JITTargetAddress TargetAddr = GOTTarget.getAddress();
+        JITTargetAddress TargetAddr = GOTTarget.getAddress();           // 当前符号的地址
 
-        int64_t Displacement = TargetAddr - EdgeAddr + 4;
+        int64_t Displacement = TargetAddr - EdgeAddr + 4;         // 当前符号和目标符号之前的间隔？？？？？
         if (Displacement >= std::numeric_limits<int32_t>::min() &&
             Displacement <= std::numeric_limits<int32_t>::max()) {
           // Change the edge kind as we don't go through GOT anymore. This is
@@ -186,8 +186,8 @@ static Error optimizeELF_x86_64_GOTAndStubs(LinkGraph &G) {
             dbgs() << "\n";
           });
         }
-      } else if (E.getKind() == Branch32ToStub) {
-        auto &StubBlock = E.getTarget().getBlock();
+      } else if (E.getKind() == Branch32ToStub) {   // Branch32ToStub ---> means jump to PLT
+        auto &StubBlock = E.getTarget().getBlock();   // 当前PLT代码所在的Block
         assert(
             StubBlock.getSize() ==
                 sizeof(PerGraphGOTAndPLTStubsBuilder_ELF_x86_64::StubContent) &&
@@ -512,7 +512,7 @@ createLinkGraphFromELFObject_x86_64(MemoryBufferRef ObjectBuffer) {
            << ObjectBuffer.getBufferIdentifier() << "...\n";
   });
 
-  auto ELFObj = object::ObjectFile::createELFObjectFile(ObjectBuffer);
+  auto ELFObj = object::ObjectFile::createELFObjectFile(ObjectBuffer);    // create elf object from memory buffer
   if (!ELFObj)
     return ELFObj.takeError();
 
@@ -543,6 +543,8 @@ identifyELFSectionStartAndEndSymbols(LinkGraph &G, Symbol &Sym) {
 void link_ELF_x86_64(std::unique_ptr<LinkGraph> G,
                      std::unique_ptr<JITLinkContext> Ctx) {
   PassConfiguration Config;
+
+  G->dump(errs());
 
   if (Ctx->shouldAddDefaultTargetPasses(G->getTargetTriple())) {
 

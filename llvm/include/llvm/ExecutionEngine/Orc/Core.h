@@ -880,6 +880,8 @@ private:
   std::unique_ptr<InProgressLookupState> IPLS;
 };
 
+/// 如果JITDylib在生成新的符号定义的时候， 没有办法找到对应的函数定义。
+/// 那么JIT会调用当前lib上附加的DefinitionGenerator， 作为解析符号的最后手段。
 /// Definition generators can be attached to JITDylibs to generate new
 /// definitions for otherwise unresolved symbols during lookup.
 class DefinitionGenerator {

@@ -137,13 +137,13 @@ ELFLinkGraphBuilder<ELFT>::ELFLinkGraphBuilder(
 
 template <typename ELFT>
 Expected<std::unique_ptr<LinkGraph>> ELFLinkGraphBuilder<ELFT>::buildGraph() {
-  if (!isRelocatable())
+  if (!isRelocatable())     // 必须是可重定位的文件。
     return make_error<JITLinkError>("Object is not a relocatable ELF file");
 
-  if (auto Err = prepare())
+  if (auto Err = prepare())                 // 读取一些特定的section （string & symtab）
     return std::move(Err);
 
-  if (auto Err = graphifySections())
+  if (auto Err = graphifySections())       // 为每个感兴趣的section建立graph
     return std::move(Err);
 
   if (auto Err = graphifySymbols())
@@ -207,14 +207,14 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::prepare() {
     return SectionsOrErr.takeError();
 
   // Get the section string table.
-  if (auto SectionStringTabOrErr = Obj.getSectionStringTable(Sections))
+  if (auto SectionStringTabOrErr = Obj.getSectionStringTable(Sections))    // 读取string表
     SectionStringTab = *SectionStringTabOrErr;
   else
     return SectionStringTabOrErr.takeError();
 
   // Get the SHT_SYMTAB section.
   for (auto &Sec : Sections)
-    if (Sec.sh_type == ELF::SHT_SYMTAB) {
+    if (Sec.sh_type == ELF::SHT_SYMTAB) {       // 读取符号表
       if (!SymTabSec)
         SymTabSec = &Sec;
       else
@@ -397,7 +397,7 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySymbols() {
           *Name = GraphSec->getName();
 
         auto &GSym =
-            G->addDefinedSymbol(*B, Sym.getValue(), *Name, Sym.st_size, L, S,
+            G->addDefinedSymbol(*B, Sym.getValue(), *Name, Sym.st_size, L, S,  // ?????
                                 Sym.getType() == ELF::STT_FUNC, false);
         setGraphSymbol(SymIndex, GSym);
       }

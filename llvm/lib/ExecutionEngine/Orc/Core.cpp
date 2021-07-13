@@ -1595,12 +1595,12 @@ Error JITDylib::defineImpl(MaterializationUnit &MU) {
       if (KV.second.isStrong()) {
         if (I->second.getFlags().isStrong() ||
             I->second.getState() > SymbolState::NeverSearched)
-          Duplicates.insert(KV.first);
+          Duplicates.insert(KV.first); // 存在重复定义符号的问题。
         else {
           assert(I->second.getState() == SymbolState::NeverSearched &&
                  "Overridden existing def should be in the never-searched "
                  "state");
-          ExistingDefsOverridden.push_back(KV.first);
+          ExistingDefsOverridden.push_back(KV.first);  // 存在符号的override
         }
       } else
         MUDefsOverridden.push_back(KV.first);
@@ -1608,7 +1608,7 @@ Error JITDylib::defineImpl(MaterializationUnit &MU) {
   }
 
   // If there were any duplicate definitions then bail out.
-  if (!Duplicates.empty()) {
+  if (!Duplicates.empty()) {   // 不允许存在重复的符号。
     LLVM_DEBUG(
         { dbgs() << "  Error: Duplicate symbols " << Duplicates << "\n"; });
     return make_error<DuplicateDefinition>(std::string(**Duplicates.begin()));
@@ -1660,7 +1660,7 @@ void JITDylib::installMaterializationUnit(
 
   auto UMI = std::make_shared<UnmaterializedInfo>(std::move(MU), &RT);
   for (auto &KV : UMI->MU->getSymbols())
-    UnmaterializedInfos[KV.first] = UMI;
+    UnmaterializedInfos[KV.first] = UMI;        // 存储一个没有物化的映射问题： symbol -> UnmaterializedInfo
 }
 
 void JITDylib::detachQueryHelper(AsynchronousSymbolQuery &Q,
@@ -1912,16 +1912,16 @@ void ExecutionSession::lookup(
   // lookup can be re-entered recursively if running on a single thread. Run any
   // outstanding MUs in case this query depends on them, otherwise this lookup
   // will starve waiting for a result from an MU that is stuck in the queue.
-  dispatchOutstandingMUs();
+  dispatchOutstandingMUs();    // 首先解析当前符号依赖的其他的符号， 这一步是同步的， 不是异步
 
   auto Unresolved = std::move(Symbols);
   auto Q = std::make_shared<AsynchronousSymbolQuery>(Unresolved, RequiredState,
-                                                     std::move(NotifyComplete));
+                                                     std::move(NotifyComplete));   // 用于用户查询符号， 该结构体通过回调函数来返回结果
 
-  auto IPLS = std::make_unique<InProgressFullLookupState>(
+  auto IPLS = std::make_unique<InProgressFullLookupState>(      // 定义了当前的查找状态。
       K, SearchOrder, std::move(Unresolved), RequiredState, std::move(Q),
       std::move(RegisterDependencies));
-
+  // 当前函数触发了符号定义
   OL_applyQueryPhase1(std::move(IPLS), Error::success());
 }
 
@@ -2114,6 +2114,7 @@ Error ExecutionSession::IL_updateCandidatesFor(
         if (SymI == JD.Symbols.end())
           return false;
 
+        // 如果我们只关心那些可导出符号， 那么将那些不可导出符号添加到NonCandidates中。
         // If this is a non-exported symbol and we're matching exported
         // symbols only then remove this symbol from the candidates list.
         //
@@ -2122,7 +2123,7 @@ Error ExecutionSession::IL_updateCandidatesFor(
         if (!SymI->second.getFlags().isExported() &&
             JDLookupFlags == JITDylibLookupFlags::MatchExportedSymbolsOnly) {
           if (NonCandidates)
-            NonCandidates->add(Name, SymLookupFlags);
+            NonCandidates->add(Name, SymLookupFlags);   // 将一些不满足的符号添加到NonCandidates中
           return true;
         }
 
@@ -2131,6 +2132,9 @@ Error ExecutionSession::IL_updateCandidatesFor(
         // an error.
         // FIXME: Use a "materialization-side-effects-only symbols must be
         // weakly referenced" specific error here to reduce confusion.
+        //
+        // 如果一个符号被标记为MaterializationSideEffectsOnly, 并且查找方式不是WeaklyReferencedSymbol， 
+        // 那么直接抛异常。
         if (SymI->second.getFlags().hasMaterializationSideEffectsOnly() &&
             SymLookupFlags != SymbolLookupFlags::WeaklyReferencedSymbol)
           return make_error<SymbolsNotFound>(SymbolNameVector({Name}));
@@ -2168,7 +2172,7 @@ void ExecutionSession::OL_applyQueryPhase1(
   // single pass in the common case where all symbols have already reached the
   // required state. The query could be detached again in the 'fail' method on
   // IPLS. Phase 2 would be reduced to collecting and dispatching the MUs.
-
+  // 根据外围定义的JTILib顺序， 依次做解析。
   while (IPLS->CurSearchOrderIndex != IPLS->SearchOrder.size()) {
 
     // If we've been handed an error or received one back from a generator then
@@ -2179,8 +2183,8 @@ void ExecutionSession::OL_applyQueryPhase1(
 
     // Get the next JITDylib and lookup flags.
     auto &KV = IPLS->SearchOrder[IPLS->CurSearchOrderIndex];
-    auto &JD = *KV.first;
-    auto JDLookupFlags = KV.second;
+    auto &JD = *KV.first;                     // JITDylib *   ----> 当前正在查找的JIT动态库
+    auto JDLookupFlags = KV.second;           // JITDylibLookupFlags    ----> 定义了如何查找当前的JIT动态库
 
     LLVM_DEBUG({
       dbgs() << "Visiting \"" << JD.getName() << "\" (" << JDLookupFlags
@@ -2191,28 +2195,34 @@ void ExecutionSession::OL_applyQueryPhase1(
     if (IPLS->NewJITDylib) {
 
       // Acquire the generator lock for this JITDylib.
-      IPLS->GeneratorLock = std::unique_lock<std::mutex>(JD.GeneratorsMutex);
+      IPLS->GeneratorLock = std::unique_lock<std::mutex>(JD.GeneratorsMutex);   // 首先持有一个来自JITLib的锁
 
       // Add any non-candidates from the last JITDylib (if any) back on to the
       // list of definition candidates for this JITDylib, reset definition
       // non-candiates to the empty set.
       SymbolLookupSet Tmp;
       std::swap(IPLS->DefGeneratorNonCandidates, Tmp);
+      // 如果上一个dylib中存在没有解析完全的符号， 那么将这些符号重新加入到当前的IPLS的DefGeneratorCandidates中
+      // 本轮会负责解析这些符号
       IPLS->DefGeneratorCandidates.append(std::move(Tmp));
 
       LLVM_DEBUG({
         dbgs() << "  First time visiting " << JD.getName()
                << ", resetting candidate sets and building generator stack\n";
       });
-
+      // 如果当前的JITLib中存在过个DefGenerators
       // Build the definition generator stack for this JITDylib.
       for (auto &DG : reverse(JD.DefGenerators))
-        IPLS->CurDefGeneratorStack.push_back(DG);
+        IPLS->CurDefGeneratorStack.push_back(DG);   // #反向存储# 当前jitdylib中存在的generator
 
       // Flag that we've done our initialization.
-      IPLS->NewJITDylib = false;
+      IPLS->NewJITDylib = false;     // 将当前的jitdylin标记为false, 代表已经访问过。
     }
 
+    // 如果当前某一个存在于Candidates中的符号，被证明同样出现在了JITlib中， 
+    // 那么将这个符号从DefGeneratorCandidates中删除。
+    // 因此函数IL_updateCandidatesFor的作用就是删除已经解析过的符号。
+    //
     // Remove any generation candidates that are already defined (and match) in
     // this JITDylib.
     runSessionLocked([&] {
@@ -2228,6 +2238,7 @@ void ExecutionSession::OL_applyQueryPhase1(
                << "\n";
       });
     });
+    // 走到这里， 理论上将， JIT会负责解析所有在Candidates中的符号。
 
     // If we encountered an error while filtering generation candidates then
     // bail out.
@@ -2365,12 +2376,14 @@ void ExecutionSession::OL_completeLookup(
 
             /// Search for the symbol. If not found then continue without
             /// removal.
+            /// 如果当前Dylib中没有定义对应的符号， 那么直接跳过。
             auto SymI = JD.Symbols.find(Name);
             if (SymI == JD.Symbols.end()) {
               LLVM_DEBUG(dbgs() << "skipping: not present\n");
               return false;
             }
 
+            // 只处理那些可以被导出的符号。
             // If this is a non-exported symbol and we're matching exported
             // symbols only then skip this symbol without removal.
             if (!SymI->second.getFlags().isExported() &&
@@ -2421,11 +2434,11 @@ void ExecutionSession::OL_completeLookup(
             if (SymI->second.hasMaterializerAttached()) {
               assert(SymI->second.getAddress() == 0 &&
                      "Symbol not resolved but already has address?");
-              auto UMII = JD.UnmaterializedInfos.find(Name);
+              auto UMII = JD.UnmaterializedInfos.find(Name);   // using UnmaterializedInfosMap = DenseMap<SymbolStringPtr, std::shared_ptr<UnmaterializedInfo>>;
               assert(UMII != JD.UnmaterializedInfos.end() &&
                      "Lazy symbol should have UnmaterializedInfo");
 
-              auto UMI = UMII->second;
+              auto UMI = UMII->second;     // std::shared_ptr<UnmaterializedInfo>
               assert(UMI->MU && "Materializer should not be null");
               assert(UMI->RT && "Tracker should not be null");
               LLVM_DEBUG({
@@ -2434,34 +2447,34 @@ void ExecutionSession::OL_completeLookup(
               });
 
               // Move all symbols associated with this MaterializationUnit into
-              // materializing state.
+              // materializing state.  将所有和该MU相关的符号状态都变成Materializing， 代表当前JIT编译器准备物化当前的符号。
               for (auto &KV : UMI->MU->getSymbols()) {
                 auto SymK = JD.Symbols.find(KV.first);
                 assert(SymK != JD.Symbols.end() &&
                        "No entry for symbol covered by MaterializationUnit");
                 SymK->second.setMaterializerAttached(false);
-                SymK->second.setState(SymbolState::Materializing);
+                SymK->second.setState(SymbolState::Materializing);      // 当前正在物化。
                 JD.UnmaterializedInfos.erase(KV.first);
               }
 
               // Add MU to the list of MaterializationUnits to be materialized.
-              CollectedUMIs[&JD].push_back(std::move(UMI));
+              CollectedUMIs[&JD].push_back(std::move(UMI));     // 将当前的MU添加到CollectedUMIs中， 代表下一步就准备物化这批符号。
             } else
-              LLVM_DEBUG(dbgs() << "matched, registering query");
+              LLVM_DEBUG(dbgs() << "matched, registering query");    // 代表当前符号已经物化成功。
 
             // Add the query to the PendingQueries list and continue, deleting
             // the element from the lookup set.
-            assert(SymI->second.getState() != SymbolState::NeverSearched &&
+            assert(SymI->second.getState() != SymbolState::NeverSearched &&     // 这个判断应该是符号状态应该介于NeverSearched和ready之间
                    SymI->second.getState() != SymbolState::Ready &&
                    "By this line the symbol should be materializing");
             auto &MI = JD.MaterializingInfos[Name];
-            MI.addQuery(Q);
-            Q->addQueryDependence(JD, Name);
+            MI.addQuery(Q);                                                     // 将当前的请求串加入到MI中
+            Q->addQueryDependence(JD, Name);                                    // 将当前的符号名字加入到JD的符号列表中。         
 
             return true;
           });
-
-      // Handle failure.
+      // error handing: 做一些基本的出错处理。
+      // Handle failure.  
       if (Err) {
 
         LLVM_DEBUG({
@@ -2515,7 +2528,7 @@ void ExecutionSession::OL_completeLookup(
       dbgs() << "Query successfully "
              << (QueryComplete ? "completed" : "lodged") << "\n";
     });
-
+    // 将希望物化的MU放到OutstandingMUs中。
     // Move the collected MUs to the OutstandingMUs list.
     if (!CollectedUMIs.empty()) {
       std::lock_guard<std::recursive_mutex> Lock(OutstandingMUsMutex);
@@ -2561,7 +2574,7 @@ void ExecutionSession::OL_completeLookup(
     Q->handleComplete(*this);
   }
 
-  dispatchOutstandingMUs();
+  dispatchOutstandingMUs();   // 将当前的MU分配到各个工作队列中。
 }
 
 void ExecutionSession::OL_completeLookupFlags(

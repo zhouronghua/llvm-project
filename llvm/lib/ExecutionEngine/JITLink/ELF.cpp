@@ -56,10 +56,10 @@ createLinkGraphFromELFObject(MemoryBufferRef ObjectBuffer) {
   if (Buffer.size() < ELF::EI_MAG3 + 1)
     return make_error<JITLinkError>("Truncated ELF buffer");
 
-  if (memcmp(Buffer.data(), ELF::ElfMagic, strlen(ELF::ElfMagic)) != 0)
+  if (memcmp(Buffer.data(), ELF::ElfMagic, strlen(ELF::ElfMagic)) != 0)     // 校验elf的magic number 
     return make_error<JITLinkError>("ELF magic not valid");
 
-  Expected<uint16_t> TargetMachineArch = readTargetMachineArch(Buffer);
+  Expected<uint16_t> TargetMachineArch = readTargetMachineArch(Buffer);   // read elf machine arch from elf file.
   if (!TargetMachineArch)
     return TargetMachineArch.takeError();
 
