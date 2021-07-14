@@ -15575,6 +15575,21 @@ Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
   case PPC::BI__builtin_ppc_ldarx:
   case PPC::BI__builtin_ppc_lwarx:
     return emitPPCLoadReserveIntrinsic(*this, BuiltinID, E);
+  case PPC::BI__builtin_ppc_stbcx: {
+    llvm::Function *F = CGM.getIntrinsic(Intrinsic::ppc_stbcx);
+    Ops[0] = Builder.CreateBitCast(Ops[0], Int8PtrTy);
+    auto Signed = getIntegerWidthAndSignedness(CGM.getContext(),
+                 E->getArg(1)->getType()).Signed;
+
+    if (Signed) {
+      dbgs() << "SIGNED\n";
+      Ops[1] = Builder.CreateSExt(Ops[1], Int32Ty);
+    } else {
+      dbgs() << "UNSIGNED\n";
+      Ops[1] = Builder.CreateZExt(Ops[1], Int32Ty);
+    }
+    return Builder.CreateCall(F, Ops);
+  }
   }
 }
 

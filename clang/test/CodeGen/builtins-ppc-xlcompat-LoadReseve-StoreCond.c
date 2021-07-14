@@ -18,3 +18,18 @@ int test_stwcx(volatile int* a, int val) {
   // CHECK: %1 = tail call i32 @llvm.ppc.stwcx(i8* %0, i32 %val)
   return __stwcx(a, val);
 }
+
+int test_stbcx_signed(volatile char* a, signed char val) {
+  // TODO: fix current zext code gen to sext
+  // CHECK-LABEL: @test_stbcx_signed
+  // CHECK: %0 = sext i8 %b to i32
+  // CHECK: tail call i32 @llvm.ppc.stbcx(i8 *a, i32 %0)
+  return __stbcx(a, val);
+}
+
+int test_stbcx_unsigned(volatile char* a, unsigned char val) {
+  // CHECK-LABEL: @test_stbcx_unsigned
+  // CHECK: %0 = zext i8 %b to i32
+  // CHECK: tail call i32 @llvm.ppc.stbcx(i8 *a, i32 %0)
+  return __stbcx(a, val);
+}

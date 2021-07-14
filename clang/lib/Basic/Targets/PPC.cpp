@@ -118,6 +118,7 @@ static void defineXLCompatMacros(MacroBuilder &Builder) {
   Builder.defineMacro("__lwarx", "__builtin_ppc_lwarx");
   Builder.defineMacro("__stdcx", "__builtin_ppc_stdcx");
   Builder.defineMacro("__stwcx", "__builtin_ppc_stwcx");
+  Builder.defineMacro("__stbcx", "__builtin_ppc_stbcx");
   Builder.defineMacro("__tdw", "__builtin_ppc_tdw");
   Builder.defineMacro("__tw", "__builtin_ppc_tw");
   Builder.defineMacro("__trap", "__builtin_ppc_trap");

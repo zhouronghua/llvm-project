@@ -50,3 +50,37 @@ entry:
   %1 = tail call i32 @llvm.ppc.stwcx(i8* %0, i32 %b)
   ret i32 %1
 }
+
+declare i32 @llvm.ppc.stbcx(i8*, i32)
+; signed test case
+define dso_local signext i32 @test_stbcx_signed(i8* %a, i8 signext %b) {
+; TODO: regenerate this test case
+; CHECK-32-LABEL: test_stbcx_signed:
+; CHECK-32: extsb
+; CHECK-32: stbcx.
+
+; CHECK-64-LABEL: test_stbcx_signed:
+; CHECK-64: extsb
+; CHECK-64: stbcx.
+entry:
+  ; TODO: this should be sext
+  %0 = zext i8 %b to i32
+  %1 = tail call i32 @llvm.ppc.stbcx(i8* %a, i32 %0)
+  ret i32 %1
+}
+
+; unsigned test case
+define dso_local signext i32 @test_stbcx_unsigned(i8* %a, i8 zeroext %b) {
+; TODO: regenerate this test case
+; CHECK-32-LABEL: test_stbcx_unsigned:
+; CHECK-32: clrlwi
+; CHECK-32: stbcx.
+
+; CHECK-64-LABEL: test_stbcx_unsigned:
+; CHECK-64: clrlwi
+; CHECK-64: stbcx.
+entry:
+  %0 = zext i8 %b to i32
+  %1 = tail call i32 @llvm.ppc.stbcx(i8* %a, i32 %0)
+  ret i32 %1
+}

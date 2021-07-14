@@ -5445,3 +5445,5 @@ def : Pat<(int_ppc_fctudz f64:$A),
         (XSCVDPUXDS $A)>;
 def : Pat<(int_ppc_fctuwz f64:$A),
         (XSCVDPUXWS $A)>;
+def : Pat<(int_ppc_stbcx xoaddr:$dst, gprc:$A),
+          (STBCX gprc:$A, xoaddr:$dst)>;
