@@ -15463,7 +15463,6 @@ Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
 
     return Builder.CreateExtractElement(Unpacked, Index);
   }
-
   // The PPC MMA builtins take a pointer to a __vector_quad as an argument.
   // Some of the MMA instructions accumulate their result into an existing
   // accumulator whereas the others generate a new accumulator. So we need to
@@ -15575,6 +15574,18 @@ Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
   case PPC::BI__builtin_ppc_ldarx:
   case PPC::BI__builtin_ppc_lwarx:
     return emitPPCLoadReserveIntrinsic(*this, BuiltinID, E);
+  case PPC::BI__builtin_ppc_mfspr: {
+    dbgs() <<"Hello\n";
+    llvm::Type *src0 = EmitScalarExpr(E->getArg(0))->getType();
+    src0->dump();
+    dbgs() << "Ops size: " << Ops.size() << "\n";
+    Function *F = CGM.getIntrinsic(Intrinsic::ppc_mfspr, src0);
+    // uint64_t Imm = cast<llvm::ConstantInt>(Ops[0])->getZExtValue();
+    // Ops[0] = llvm::ConstantInt::get(Int32Ty, Imm);
+    Value *temp =  Builder.CreateCall(F, Ops);
+    temp->dump();
+    return temp;
+  }
   }
 }
 

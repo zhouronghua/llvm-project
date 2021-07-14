@@ -140,6 +140,7 @@ static void defineXLCompatMacros(MacroBuilder &Builder) {
   Builder.defineMacro("__maddhd", "__builtin_ppc_maddhd");
   Builder.defineMacro("__maddhdu", "__builtin_ppc_maddhdu");
   Builder.defineMacro("__maddld", "__builtin_ppc_maddld");
+  Builder.defineMacro("__mfspr", "__builtin_ppc_mfspr");
 }
 
 /// PPCTargetInfo::getTargetDefines - Return a set of the PowerPC-specific

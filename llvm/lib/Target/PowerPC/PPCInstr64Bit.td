@@ -412,7 +412,6 @@ def MFSPR8 : XFXForm_1<31, 339, (outs g8rc:$RT), (ins i32imm:$SPR),
 def MTSPR8 : XFXForm_1<31, 467, (outs), (ins i32imm:$SPR, g8rc:$RT),
                        "mtspr $SPR, $RT", IIC_SprMTSPR>;
 
-
 //===----------------------------------------------------------------------===//
 // 64-bit SPR manipulation instrs.
 
@@ -1749,3 +1748,5 @@ def : Pat<(int_ppc_tdw g8rc:$A, g8rc:$B, i32:$IMM),
 // trapd
 def : Pat<(int_ppc_trapd g8rc:$A),
           (TDI 24, $A, 0)>;
+def : Pat<(i32 (int_ppc_mfspr i32:$SPR)),
+          (MFSPR $SPR)>;

@@ -83,6 +83,7 @@ BUILTIN(__builtin_ppc_mulhwu, "UiUiUi", "")
 BUILTIN(__builtin_ppc_maddhd, "LLiLLiLLiLLi", "")
 BUILTIN(__builtin_ppc_maddhdu, "ULLiULLiULLiULLi", "")
 BUILTIN(__builtin_ppc_maddld, "LLiLLiLLiLLi", "")
+BUILTIN(__builtin_ppc_mfspr, "ULiiC", "")
 
 BUILTIN(__builtin_ppc_get_timebase, "ULLi", "n")
 
