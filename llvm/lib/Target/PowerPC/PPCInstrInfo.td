@@ -5447,3 +5447,7 @@ def : Pat<(int_ppc_fctuwz f64:$A),
         (XSCVDPUXWS $A)>;
 def : Pat<(i32 (int_ppc_mfspr i32:$SPR)),
           (MFSPR $SPR)>;
+def : Pat<(int_ppc_mtspr i32:$SPR, gprc:$RT),
+          (MTSPR $SPR, $RT)>;
+def : Pat<(int_ppc_mtmsr gprc:$RS),
+          (MTMSR $RS, 0)>;

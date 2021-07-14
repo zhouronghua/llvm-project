@@ -15575,16 +15575,18 @@ Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
   case PPC::BI__builtin_ppc_lwarx:
     return emitPPCLoadReserveIntrinsic(*this, BuiltinID, E);
   case PPC::BI__builtin_ppc_mfspr: {
-    dbgs() <<"Hello\n";
-    llvm::Type *src0 = EmitScalarExpr(E->getArg(0))->getType();
-    src0->dump();
-    dbgs() << "Ops size: " << Ops.size() << "\n";
-    Function *F = CGM.getIntrinsic(Intrinsic::ppc_mfspr, src0);
-    // uint64_t Imm = cast<llvm::ConstantInt>(Ops[0])->getZExtValue();
-    // Ops[0] = llvm::ConstantInt::get(Int32Ty, Imm);
-    Value *temp =  Builder.CreateCall(F, Ops);
-    temp->dump();
-    return temp;
+    llvm::Type *RetType =
+      CGM.getDataLayout().getTypeSizeInBits(VoidPtrTy) == 32 ? Int32Ty :
+                                                               Int64Ty;
+    Function *F = CGM.getIntrinsic(Intrinsic::ppc_mfspr, RetType);
+    return Builder.CreateCall(F, Ops);
+  }
+  case PPC::BI__builtin_ppc_mtspr: {
+    llvm::Type *RetType =
+      CGM.getDataLayout().getTypeSizeInBits(VoidPtrTy) == 32 ? Int32Ty :
+                                                               Int64Ty;
+    Function *F = CGM.getIntrinsic(Intrinsic::ppc_mtspr, RetType);
+    return Builder.CreateCall(F, Ops);
   }
   }
 }
